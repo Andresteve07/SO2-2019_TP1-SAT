@@ -1,3 +1,16 @@
+build/
+.vscode/
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Visual Studio code coverage results
+*.coverage
+*.coveragexml
+
 CMakeCache.txt
 CMakeFiles
 CMakeScripts

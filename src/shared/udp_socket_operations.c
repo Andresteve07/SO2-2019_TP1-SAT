@@ -17,12 +17,13 @@
 #include "frozen.h"
 #include "log.h"
 #include <sys/time.h>
+#include <errno.h>
   
 #define PORT	12121 
 #define MAXLINE 1024 
 
 int udp_sockfd;
-struct sockaddr_in udp_servaddr;
+struct sockaddr_in udp_my_address, udp_target_address;
 
 operation_result udp_init_client(){
 	// Creating socket file descriptor 
@@ -31,17 +32,54 @@ operation_result udp_init_client(){
 		exit(EXIT_FAILURE); 
 	} 
 
-	memset(&udp_servaddr, 0, sizeof(udp_servaddr)); 
+	memset(&udp_target_address, 0, sizeof(udp_target_address)); 
 	
 	// Filling server information 
-	udp_servaddr.sin_family = AF_INET; 
-	udp_servaddr.sin_port = htons(PORT); 
-	udp_servaddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+	udp_target_address.sin_family = AF_INET; 
+	udp_target_address.sin_port = htons(PORT); 
+	udp_target_address.sin_addr.s_addr = inet_addr("127.0.0.1");
 	log_debug("UDP socket creation succeed!");
 	return socket_success;
 }
+operation_result udp_init_server(){
+	// Creating socket file descriptor 
+    if ( (udp_sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) { 
+        perror("socket creation failed"); 
+        exit(EXIT_FAILURE); 
+    } 
+      
+    memset(&udp_my_address, 0, sizeof(udp_my_address)); 
+    memset(&udp_target_address, 0, sizeof(udp_target_address)); 
+      
+    // Filling server information 
+    udp_my_address.sin_family    = AF_INET; // IPv4 
+    udp_my_address.sin_addr.s_addr = INADDR_ANY; 
+    udp_my_address.sin_port = htons(PORT); 
+      
+    // Bind the socket with the server address 
+    if ( bind(udp_sockfd, (const struct sockaddr *)&udp_my_address,  
+            sizeof(udp_my_address)) < 0 ) 
+    { 
+        perror("bind failed"); 
+        exit(EXIT_FAILURE); 
+    }
+	return udp_timeouts(2);
+}
 operation_result udp_timeouts(int seconds){
-	return socket_success;
+	struct timeval timeout;      
+    timeout.tv_sec = seconds;
+    timeout.tv_usec = 0;
+
+    if (setsockopt (udp_sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0){
+		log_error("setsockopt failed\n");
+		return socket_failure;
+	}
+        
+    if (setsockopt (udp_sockfd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0){
+		log_error("setsockopt failed\n");
+		return socket_failure;
+	}
+    return socket_success;
 }
 operation_result udp_connect_to_server(char*  server_ip){
 	return socket_success;
@@ -61,7 +99,7 @@ operation_result udp_recv_data(){
 	return op;
 }
 
-operation_result udp_send_rpc_request(rpc* request){
+operation_result udp_send_rpc(rpc* rpc_message){
 	char total_buf[204];
 	bzero(total_buf,sizeof(total_buf));
 	
@@ -69,10 +107,10 @@ operation_result udp_send_rpc_request(rpc* request){
 	struct json_out output = JSON_OUT_BUF(rpc_buf, 200);
 	
 	json_printf(&output, RPC_JSON_FMT,
-	request->command_id,
-	request->satellite_id,
-	request->station_id,
-	request->payload);
+	rpc_message->command_id,
+	rpc_message->satellite_id,
+	rpc_message->station_id,
+	rpc_message->payload);
 	log_trace("RPC req: %s\n",rpc_buf);
 
 	load_heading_integer_to_byte_array(strlen(rpc_buf),total_buf);
@@ -80,46 +118,47 @@ operation_result udp_send_rpc_request(rpc* request){
 	log_trace("TOTAL req: %c%c%c%c%s\n",total_buf[0],total_buf[1],total_buf[2],total_buf[3],&total_buf[4]);
 
 	if(sendto(udp_sockfd, total_buf, strlen(rpc_buf)+4, 
-	MSG_CONFIRM, (const struct sockaddr *) & udp_servaddr, 
-	sizeof(udp_servaddr)) > 0){
+	MSG_CONFIRM, (const struct sockaddr *) & udp_target_address, 
+	sizeof(udp_target_address)) > 0){
 		return socket_success;
 	} else {
 		return socket_failure;
 	}
 }
 
-operation_result udp_recv_rpc_response(rpc* response){
+operation_result udp_recv_rpc(rpc* rpc_message){
 	size_t payload_size;
-	char resp_buf[500];//sizeof only works ok for static arrays i.e. results on 500
-	bzero(resp_buf, sizeof(resp_buf));
+	char input_buf[500];//sizeof only works ok for static arrays i.e. results on 500
+	bzero(input_buf, sizeof(input_buf));
 	socklen_t address_size; 
 	
-	if(recvfrom(udp_sockfd, resp_buf, sizeof(resp_buf),
-	MSG_WAITALL, (struct sockaddr *) &udp_servaddr, 
+	if(recvfrom(udp_sockfd, input_buf, sizeof(input_buf),
+	MSG_WAITALL, (struct sockaddr *) &udp_target_address, 
 	&address_size) > 0){
-		int size_int = integerFromArrayTip(resp_buf);
-		char* recv_data = &resp_buf[4];
+		int size_int = integerFromArrayTip(input_buf);
+		char* recv_data = &input_buf[4];
 		recv_data[size_int]='\0';
 		log_trace("size_cadena:%lu,cadena: %s\n",strlen(recv_data),recv_data);
 		log_trace("HOLOOO");
 		
 		json_scanf(recv_data,strlen(recv_data),RPC_JSON_FMT,
-		& response->command_id,
-		& response->satellite_id,
-		& response->station_id,
-		& response->payload);
+		& rpc_message->command_id,
+		& rpc_message->satellite_id,
+		& rpc_message->station_id,
+		& rpc_message->payload);
 
-		log_trace("payload size: %lu, apy:%s", strlen(response->payload),response->payload);
+		log_trace("payload size: %lu, apy:%s", strlen(rpc_message->payload),rpc_message->payload);
 		
 		log_trace("cid:%i,\nsatid:%i,\nstid:%i,\npay:%s",
-		response->command_id,
-		response->satellite_id,
-		response->station_id,
-		response->payload);
+		rpc_message->command_id,
+		rpc_message->satellite_id,
+		rpc_message->station_id,
+		rpc_message->payload);
 		
 		return socket_success;
 
 	} else {
+		log_error("FAILED TO RECEIVE UDP RPC MSG! Errno: %s", strerror(errno));
 		return socket_failure;
 	}
 }

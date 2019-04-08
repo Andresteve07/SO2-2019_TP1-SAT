@@ -28,7 +28,8 @@ typedef struct rpc
 	unsigned char command_id;
 	int satellite_id;
 	int station_id;
-	char* payload;
+	char* payload;//results
+	char* error;
 } rpc;
 
 operation_result tcp_init_client();
@@ -39,8 +40,8 @@ operation_result tcp_send_data(char* data_buffer);
 operation_result tcp_send_data_bytes(char* data_buffer, size_t byte_count);
 operation_result tcp_recv_data(char* data_buffer);
 operation_result tcp_recv_data_bytes(char* data_buffer, size_t byte_count);
-operation_result tcp_send_rpc_request(rpc* request);
-operation_result tcp_recv_rpc_response(rpc* response);
+operation_result tcp_send_rpc(rpc* rpc_message);
+operation_result tcp_recv_rpc(rpc* rpc_message);
 operation_result tcp_send_file(char* file_name);
 operation_result tcp_recv_file(FILE* input_file);
 operation_result tcp_recv_file_known_size(FILE* input_file, size_t byte_count);
@@ -57,8 +58,8 @@ operation_result udp_timeouts(int seconds);
 operation_result udp_connect_to_server(char*  server_ip);
 operation_result udp_send_data();
 operation_result udp_recv_data();
-operation_result udp_send_rpc_request(rpc* request);
-operation_result udp_recv_rpc_response(rpc* response);
+operation_result udp_send_rpc(rpc* rpc_message);
+operation_result udp_recv_rpc(rpc* rpc_message);
 
 
 #endif /* SRC_SOCKET_CLIENT_H_ */

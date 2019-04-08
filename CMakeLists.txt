@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.6)
 
-project (SO2-2019_TP1)
+project (SO2-2019_TP1-SAT)
 INCLUDE_DIRECTORIES(src)
 INCLUDE_DIRECTORIES(lib)
 # ncurses library
@@ -10,23 +10,17 @@ INCLUDE_DIRECTORIES(lib)
 set(CMAKE_BUILD_TYPE Debug)
 add_definitions(-DLOG_USE_COLOR)
 #target_compile_definitions(run_test PRIVATE -DLOG_USE_COLOR)
- 
-add_executable(run_test 
-unittest/test_both_even.c 
-src/both.c 
-src/frozen.c 
-)
 
-add_executable(so2_tp1_station 
-src/station_app.c 
-src/frozen.c 
-src/presenter.c 
-src/vista.c
-src/login_service.c
-src/tcp_socket_client.c
-src/udp_socket_client.c
-src/satellite_service.c
-src/log.c)
+add_executable(so2_tp1_satellite 
+src/satellite_app.c 
+src/frozen.c
+src/log.c
+src/shared/tcp_socket_operations.c
+src/shared/udp_socket_operations.c
+src/command_router.c
+src/command_controller.c
+src/system_stats_service.c
+)
 
 #ncurses library
 #target_link_libraries(run_test ${CURSES_LIBRARIES})
