@@ -161,11 +161,11 @@ void load_heading_integer_to_byte_array(int number,char* array){
 }
 
 operation_result tcp_send_rpc(rpc* rpc_message){
-	char total_buf[204];
+	char total_buf[504];
 	bzero(total_buf,sizeof(total_buf));
 
 	char* rpc_buf = &total_buf[4];
-	struct json_out output = JSON_OUT_BUF(rpc_buf, 200);
+	struct json_out output = JSON_OUT_BUF(rpc_buf, 500);
 
 	json_printf(&output, RPC_JSON_FMT,
 	rpc_message->command_id,
@@ -240,12 +240,19 @@ int load_file_buffer(FILE* fp, char* buf, int s)
         return 1; 
     } 
   
-    char ch; 
+    unsigned char ch; 
     for (i = 0; i < s; i++) { 
-        ch = fgetc(fp); 
-        buf[i] = ch; 
-        if (ch == EOF) 
+		/*
+		if (feof(fp)) 
             return 1; 
+		*/
+        ch = fgetc(fp);
+		//fread(&ch,1,1,fp);
+		if (ch == EOF) {
+			return 1;
+		}
+		
+        buf[i] = ch;        
     } 
     return 0; 
 } 
@@ -263,7 +270,57 @@ operation_result tcp_send_file(char* file_name){
 				return socket_failure;
 			}
 		}
-		// send 
+		// send
+		if(write(connfd, file_buffer, NET_BUF_SIZE) <= 0){
+			return socket_failure;
+		}
+		bzero(file_buffer,NET_BUF_SIZE);
+	}
+	if (file_ptr != NULL){
+		fclose(file_ptr);
+	}
+	return socket_success;
+}
+int load_file_buffer_bis(FILE* fp, char* buf, int s) 
+{ 
+    int i, len; 
+    if (fp == NULL) { 
+        strcpy(buf, nofile); 
+        len = strlen(nofile); 
+        buf[len] = EOF;
+        return 1; 
+    } 
+  
+    unsigned char ch; 
+    for (i = 0; i < s; i++) {
+		if (feof(fp)) 
+            return 1;
+        ch = fgetc(fp);
+		//fread(&ch,1,1,fp);
+		/*
+		if (ch == EOF) {
+			return 1;
+		}
+		*/
+        buf[i] = ch;        
+    } 
+    return 0; 
+}
+
+operation_result tcp_send_file_known_size(char* file_name, size_t size_bytes){
+	FILE *file_ptr;
+	file_ptr=fopen(file_name,"rb");
+	char file_buffer[NET_BUF_SIZE]; 
+	while (1) {
+		// process 
+		if (load_file_buffer_bis(file_ptr, file_buffer, NET_BUF_SIZE)) {
+			if(write(connfd, file_buffer, strlen(file_buffer)) > 0){
+				break;
+			} else {
+				return socket_failure;
+			}
+		}
+		// send
 		if(write(connfd, file_buffer, NET_BUF_SIZE) <= 0){
 			return socket_failure;
 		}

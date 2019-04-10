@@ -3,6 +3,8 @@
 
 typedef struct update_params{
 	int update_version;
+	//char* file_name;
+	long file_size_bytes;
 } update_params;
 
 typedef struct update_result{
@@ -13,9 +15,14 @@ typedef struct scan_params{
 	int update_version;
 } scan_params;
 */
+typedef struct slice_meta{
+	char* slice_name;
+    long slice_size_bytes;
+} slice_meta;
+
 typedef struct scan_result{
 	int slices_quantity;
-    int slice_size_bytes;
+    slice_meta* slices_dataset;
 } scan_result;
 /*
 typedef struct telemetry_params{

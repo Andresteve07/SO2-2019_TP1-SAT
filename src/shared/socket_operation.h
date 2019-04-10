@@ -43,6 +43,7 @@ operation_result tcp_recv_data_bytes(char* data_buffer, size_t byte_count);
 operation_result tcp_send_rpc(rpc* rpc_message);
 operation_result tcp_recv_rpc(rpc* rpc_message);
 operation_result tcp_send_file(char* file_name);
+operation_result tcp_send_file_known_size(char* file_name, size_t size_bytes);
 operation_result tcp_recv_file(FILE* input_file);
 operation_result tcp_recv_file_known_size(FILE* input_file, size_t byte_count);
 operation_result tcp_close_connection();

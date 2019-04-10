@@ -22,5 +22,11 @@ src/command_controller.c
 src/system_stats_service.c
 )
 
+add_executable(json_tests 
+unittest/json_tests.c
+src/frozen.c
+src/log.c
+)
+
 #ncurses library
 #target_link_libraries(run_test ${CURSES_LIBRARIES})

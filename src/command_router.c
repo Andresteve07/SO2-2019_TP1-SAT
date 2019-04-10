@@ -17,10 +17,10 @@ void route_commands(rpc* rpc_request){
             firmware_update(rpc_request->payload);
             break;
         case 2:
-            earth_surfice_scan(rpc_request->payload);
+            earth_surfice_scan();
             break;
         case 3:
-            system_telemetry(rpc_request->payload);
+            system_telemetry();
             break;
         default:
             log_error("Unsupported command code");
