@@ -150,31 +150,39 @@ operation_result tcp_recv_data(char* data_buffer){
 	}
 }
 
-void load_heading_integer_to_byte_array(int number,char* array){
+/**
+ * @brief Sets the payload size in the first 4 bytes of the whole buffer
+ * LSB go first
+ * 
+ * @param payload_size 
+ * @param whole_buffer 
+ */
+void set_payload_size(int payload_size,char* whole_buffer){
 	//LSB first
-	log_trace("number: %i ", number);
-	array[0] = (unsigned char) (number & 0xFF);
-	array[1] = (unsigned char) ((number>>8) & 0xFF);
-	array[2] = (unsigned char) ((number>>16) & 0xFF);
-	array[3] = (unsigned char) ((number>>24) & 0xFF);
-	log_trace("bytes:%i,%i,%i,%i\n",array[0],array[1],array[2],array[3]);
+	log_trace("payload_size: %i ", payload_size);
+	whole_buffer[0] = (unsigned char) (payload_size & 0xFF);
+	whole_buffer[1] = (unsigned char) ((payload_size>>8) & 0xFF);
+	whole_buffer[2] = (unsigned char) ((payload_size>>16) & 0xFF);
+	whole_buffer[3] = (unsigned char) ((payload_size>>24) & 0xFF);
+	log_trace("bytes:%i,%i,%i,%i\n",whole_buffer[0],whole_buffer[1],whole_buffer[2],whole_buffer[3]);
 }
 
 operation_result tcp_send_rpc(rpc* rpc_message){
-	char total_buf[504];
+	char total_buf[RPC_MSG_BUF_SIZE];
 	bzero(total_buf,sizeof(total_buf));
 
 	char* rpc_buf = &total_buf[4];
-	struct json_out output = JSON_OUT_BUF(rpc_buf, 500);
+	struct json_out output = JSON_OUT_BUF(rpc_buf, RPC_MSG_BUF_SIZE-4);
 
 	json_printf(&output, RPC_JSON_FMT,
 	rpc_message->command_id,
 	rpc_message->satellite_id,
 	rpc_message->station_id,
-	rpc_message->payload);
+	rpc_message->payload,
+	rpc_message->error);
 	log_trace("RPC req: %s\n",rpc_buf);
 
-	load_heading_integer_to_byte_array(strlen(rpc_buf),total_buf);
+	set_payload_size(strlen(rpc_buf),total_buf);
 	
 	log_trace("TOTAL req: %c%c%c%c%s\n",total_buf[0],total_buf[1],total_buf[2],total_buf[3],&total_buf[4]);
 
@@ -185,44 +193,56 @@ operation_result tcp_send_rpc(rpc* rpc_message){
 	}
 	
 }
-int integerFromArrayTip(char* array){
-	int number = 0;
-	number = (int)((unsigned char)array[3]);
-	number = (number<<8) + (unsigned char) array[2];
-	number = (number<<8) + (unsigned char) array[1];
-	number = (number<<8) + (unsigned char) array[0];
-	log_trace("number:%i",number);
-	return number;
+/**
+ * @brief Gets the payload size from the first 4 bytes of the input buffer.
+ * 
+ * @param whole_buffer 
+ * @return int 
+ */
+int get_payload_size(char* whole_buffer){
+	int payload_size = 0;
+	payload_size = (int)((unsigned char)whole_buffer[3]);
+	payload_size = (payload_size<<8) + (unsigned char) whole_buffer[2];
+	payload_size = (payload_size<<8) + (unsigned char) whole_buffer[1];
+	payload_size = (payload_size<<8) + (unsigned char) whole_buffer[0];
+	log_trace("payload_size:%i",payload_size);
+	return payload_size;
 
 }
 
 operation_result tcp_recv_rpc(rpc* rpc_message){
 	size_t payload_size;
-	char input_buf[500];//sizeof only works ok for static arrays i.e. results on 500
+	char input_buf[RPC_MSG_BUF_SIZE];//sizeof only works ok for static arrays i.e. results on 500
 	bzero(input_buf, sizeof(input_buf));
 	if(read(connfd, input_buf, sizeof(input_buf)) > 0){
-		int size_int = integerFromArrayTip(input_buf);
+		int size_int = get_payload_size(input_buf);
 		char* recv_data = &input_buf[4];
 		recv_data[size_int]='\0';
 		log_trace("size_cadena:%lu,cadena: %s\n",strlen(recv_data),recv_data);
-		log_trace("HOLOOO");
 		
 		json_scanf(recv_data,strlen(recv_data),RPC_JSON_FMT,
 		& rpc_message->command_id,
 		& rpc_message->satellite_id,
 		& rpc_message->station_id,
-		& rpc_message->payload);
+		& rpc_message->payload,
+		& rpc_message->error);
 
-		log_trace("payload size: %lu, apy:%s", strlen(rpc_message->payload),rpc_message->payload);
+		if (rpc_message->payload!=NULL){
+			log_trace("payload_size: %lu, payload:%s", strlen(rpc_message->payload),rpc_message->payload);
+		}
+
+		if(rpc_message->error!=NULL){
+			log_trace("error_size: %lu, error:%s", strlen(rpc_message->error),rpc_message->error);
+		}
 		
-		log_trace("cid:%i,\nsatid:%i,\nstid:%i,\npay:%s",
+		log_trace("cid:%i,\nsatid:%i,\nstid:%i,\npay:%s,\nerror:%s",
 		rpc_message->command_id,
 		rpc_message->satellite_id,
 		rpc_message->station_id,
-		rpc_message->payload);
+		rpc_message->payload,
+		rpc_message->error);
 		
 		return socket_success;
-
 	} else {
 		log_error("FAILED TO RECEIVE RPC MSG! Errno: %s", strerror(errno));
 		return socket_failure;
@@ -241,61 +261,10 @@ int load_file_buffer(FILE* fp, char* buf, int s)
     } 
   
     unsigned char ch; 
-    for (i = 0; i < s; i++) { 
-		/*
-		if (feof(fp)) 
-            return 1; 
-		*/
-        ch = fgetc(fp);
-		//fread(&ch,1,1,fp);
-		if (ch == EOF) {
-			return 1;
-		}
-		
-        buf[i] = ch;        
-    } 
-    return 0; 
-} 
-#define NET_BUF_SIZE 32 
-operation_result tcp_send_file(char* file_name){
-	FILE *file_ptr;
-	file_ptr=fopen(file_name,"r");
-	char file_buffer[NET_BUF_SIZE]; 
-	while (1) {
-		// process 
-		if (load_file_buffer(file_ptr, file_buffer, NET_BUF_SIZE)) {
-			if(write(connfd, file_buffer, strlen(file_buffer)) > 0){
-				break;
-			} else {
-				return socket_failure;
-			}
-		}
-		// send
-		if(write(connfd, file_buffer, NET_BUF_SIZE) <= 0){
-			return socket_failure;
-		}
-		bzero(file_buffer,NET_BUF_SIZE);
-	}
-	if (file_ptr != NULL){
-		fclose(file_ptr);
-	}
-	return socket_success;
-}
-int load_file_buffer_bis(FILE* fp, char* buf, int s) 
-{ 
-    int i, len; 
-    if (fp == NULL) { 
-        strcpy(buf, nofile); 
-        len = strlen(nofile); 
-        buf[len] = EOF;
-        return 1; 
-    } 
-  
-    unsigned char ch; 
     for (i = 0; i < s; i++) {
 		if (feof(fp)) 
             return 1;
-        ch = fgetc(fp);
+        ch = fgetc(fp);//TODO replace with 'fread'
 		//fread(&ch,1,1,fp);
 		/*
 		if (ch == EOF) {
@@ -304,16 +273,16 @@ int load_file_buffer_bis(FILE* fp, char* buf, int s)
 		*/
         buf[i] = ch;        
     } 
-    return 0; 
+    return 0;
 }
 
-operation_result tcp_send_file_known_size(char* file_name, size_t size_bytes){
+operation_result tcp_send_file(char* file_name){
 	FILE *file_ptr;
 	file_ptr=fopen(file_name,"rb");
-	char file_buffer[NET_BUF_SIZE]; 
+	char file_buffer[FILE_CHUNK_BUF_SIZE]; 
 	while (1) {
 		// process 
-		if (load_file_buffer_bis(file_ptr, file_buffer, NET_BUF_SIZE)) {
+		if (load_file_buffer(file_ptr, file_buffer, FILE_CHUNK_BUF_SIZE)) {
 			if(write(connfd, file_buffer, strlen(file_buffer)) > 0){
 				break;
 			} else {
@@ -321,10 +290,10 @@ operation_result tcp_send_file_known_size(char* file_name, size_t size_bytes){
 			}
 		}
 		// send
-		if(write(connfd, file_buffer, NET_BUF_SIZE) <= 0){
+		if(write(connfd, file_buffer, FILE_CHUNK_BUF_SIZE) <= 0){
 			return socket_failure;
 		}
-		bzero(file_buffer,NET_BUF_SIZE);
+		bzero(file_buffer,FILE_CHUNK_BUF_SIZE);
 	}
 	if (file_ptr != NULL){
 		fclose(file_ptr);
@@ -348,11 +317,11 @@ int scan_input_buf_for_EOF(char* buf, int s) {
 }
 operation_result tcp_recv_file(FILE* file_ptr){
 	log_trace("RECV FILE");
-	char input_buffer[NET_BUF_SIZE];
+	char input_buffer[FILE_CHUNK_BUF_SIZE];
 	while(1){
-		bzero(input_buffer,NET_BUF_SIZE);
-		if(read(connfd, input_buffer, NET_BUF_SIZE) <= 0){
-			log_error("Failure to read %i bytes on file transfer.",NET_BUF_SIZE);
+		bzero(input_buffer,FILE_CHUNK_BUF_SIZE);
+		if(read(connfd, input_buffer, FILE_CHUNK_BUF_SIZE) <= 0){
+			log_error("Failure to read %i bytes on file transfer.",FILE_CHUNK_BUF_SIZE);
 			fclose(file_ptr);
 			return socket_failure;
 		}
@@ -361,7 +330,7 @@ operation_result tcp_recv_file(FILE* file_ptr){
 			fclose(file_ptr);
 			return socket_failure;
 		}
-		if(scan_input_buf_for_EOF(input_buffer, NET_BUF_SIZE)){
+		if(scan_input_buf_for_EOF(input_buffer, FILE_CHUNK_BUF_SIZE)){
 			break;
 		}	
 	}
@@ -371,6 +340,28 @@ operation_result tcp_recv_file(FILE* file_ptr){
 }
 
 operation_result tcp_recv_file_known_size(FILE* input_file, size_t byte_count){
+	log_trace("RECV FILE WITH SIZE: %lu", byte_count);
+	char input_buffer[FILE_CHUNK_BUF_SIZE];
+	long read_bytes = 0;
+	int current_read = 0;
+	while(read_bytes < byte_count){
+		bzero(input_buffer,FILE_CHUNK_BUF_SIZE);
+		current_read = read(connfd, input_buffer, FILE_CHUNK_BUF_SIZE);
+		if( current_read <= 0){
+			log_error("Failure to read %i bytes on file transfer.",FILE_CHUNK_BUF_SIZE);
+			fclose(input_file);
+			return socket_failure;
+		}
+		read_bytes += current_read;
+		if(fwrite(input_buffer,1,sizeof(input_buffer),input_file) <= 0){
+			log_error("Failure to write %i bytes into input file.",sizeof(input_buffer));
+			fclose(input_file);
+			return socket_failure;
+		}
+		current_read = 0;
+	}
+	fclose(input_file);
+	log_debug("Successful file transfer.");
 	return socket_success;
 }
 

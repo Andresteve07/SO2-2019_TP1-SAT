@@ -86,7 +86,15 @@ TEST_F(JSONTest, print_array_field_json_test){
 	printf("SIZE:%i\n",sizeof(slices_dataset[0]));
 	int result = json_printf(& output, "{a:%d,slices:%M,rand:%d}",666,print_slices_array,slices_dataset,3,888);
 	printf("print_result:%i, rpc_buf:%s\n",result, rpc_buf);
-	assert(strlen(rpc_buf)==38);
+	//assert(strlen(rpc_buf)==38);
+}
+
+TEST_F(JSONTest, testing_strlen_test){
+	char* word = NULL;
+	log_trace("VALUE %s", NULL);
+	log_trace("STRING: %s", word);
+	size_t size = strlen(word);
+	assert(size == 0);
 }
 
 int main(void)
@@ -98,5 +106,6 @@ int main(void)
 	RUN_TEST(JSONTest, qfield_json_test);
 	RUN_TEST(JSONTest, print_qfield_json_test);
 	RUN_TEST(JSONTest, print_array_field_json_test);
+	RUN_TEST(JSONTest, testing_strlen_test);
 	return 0;
 }

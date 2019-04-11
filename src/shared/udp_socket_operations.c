@@ -100,20 +100,21 @@ operation_result udp_recv_data(){
 }
 
 operation_result udp_send_rpc(rpc* rpc_message){
-	char total_buf[204];
+	char total_buf[RPC_MSG_BUF_SIZE];
 	bzero(total_buf,sizeof(total_buf));
 	
 	char* rpc_buf = &total_buf[4];
-	struct json_out output = JSON_OUT_BUF(rpc_buf, 200);
+	struct json_out output = JSON_OUT_BUF(rpc_buf, RPC_MSG_BUF_SIZE-4);
 	
 	json_printf(&output, RPC_JSON_FMT,
 	rpc_message->command_id,
 	rpc_message->satellite_id,
 	rpc_message->station_id,
-	rpc_message->payload);
+	rpc_message->payload,
+	rpc_message->error);
 	log_trace("RPC req: %s\n",rpc_buf);
 
-	load_heading_integer_to_byte_array(strlen(rpc_buf),total_buf);
+	set_payload_size(strlen(rpc_buf),total_buf);
 	
 	log_trace("TOTAL req: %c%c%c%c%s\n",total_buf[0],total_buf[1],total_buf[2],total_buf[3],&total_buf[4]);
 
@@ -128,14 +129,14 @@ operation_result udp_send_rpc(rpc* rpc_message){
 
 operation_result udp_recv_rpc(rpc* rpc_message){
 	size_t payload_size;
-	char input_buf[500];//sizeof only works ok for static arrays i.e. results on 500
+	char input_buf[RPC_MSG_BUF_SIZE];//sizeof only works ok for static arrays i.e. results on 500
 	bzero(input_buf, sizeof(input_buf));
 	socklen_t address_size; 
 	
 	if(recvfrom(udp_sockfd, input_buf, sizeof(input_buf),
 	MSG_WAITALL, (struct sockaddr *) &udp_target_address, 
 	&address_size) > 0){
-		int size_int = integerFromArrayTip(input_buf);
+		int size_int = get_payload_size(input_buf);
 		char* recv_data = &input_buf[4];
 		recv_data[size_int]='\0';
 		log_trace("size_cadena:%lu,cadena: %s\n",strlen(recv_data),recv_data);
@@ -145,15 +146,23 @@ operation_result udp_recv_rpc(rpc* rpc_message){
 		& rpc_message->command_id,
 		& rpc_message->satellite_id,
 		& rpc_message->station_id,
-		& rpc_message->payload);
+		& rpc_message->payload,
+		& rpc_message->error);
 
-		log_trace("payload size: %lu, apy:%s", strlen(rpc_message->payload),rpc_message->payload);
-		
-		log_trace("cid:%i,\nsatid:%i,\nstid:%i,\npay:%s",
+		if (rpc_message->payload!=NULL){
+			log_trace("payload_size: %lu, payload:%s", strlen(rpc_message->payload),rpc_message->payload);
+		}
+
+		if(rpc_message->error!=NULL){
+			log_trace("error_size: %lu, error:%s", strlen(rpc_message->error),rpc_message->error);
+		}
+
+		log_trace("cid:%i,\nsatid:%i,\nstid:%i,\npay:%s,\nerror:%s",
 		rpc_message->command_id,
 		rpc_message->satellite_id,
 		rpc_message->station_id,
-		rpc_message->payload);
+		rpc_message->payload,
+		rpc_message->error);
 		
 		return socket_success;
 

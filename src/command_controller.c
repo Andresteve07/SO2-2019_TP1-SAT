@@ -8,11 +8,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#define UPDATE_PARAMS_FMT "{update_version:%d, file_size_bytes:%lu}"
+#define UPDATE_RESULT_FMT "{current_version:%d}"
+#define TELEMETRY_JSON_FMT "{cpu_usage:%f, firmware_version:%d, mem_usage:%f, satellite_id:%d, uptime:%f}"
+#define SCAN_RESULT_JSON_FMT "{slice_quantity:%d, slices_dataset:%M}"
+#define RPC_ERROR_FMT "{error_code:%d,error_message:%Q}"
 
-#define TELEMETRY_JSON_FMT "{cpu_usage:%f,firmware_version:%d,mem_usage:%f,satellite_id:%d,uptime:%f}"
-#define SCAN_RESULT_JSON_FMT "{slice_quantity:%d,slices_dataset:%M}"
-
-#define UPDATE_RESPONSE_JSON_FMT "{current_version:%d}"
 #define UPDATE_COMMAND_CODE 1
 
 #define TELEMETY_COMMAND_CODE 3
@@ -26,6 +27,48 @@
 #define FIRMWARE_FILE_PATH "../assets/file_server"
 
 int firmware_update(char* params){
+    update_params req_params;
+    json_scanf(params, strlen(params), UPDATE_PARAMS_FMT, 
+    & req_params.update_version,
+    & req_params.file_size_bytes);
+
+    //int upgrade_version_check = check_upgrade_version(req_params.update_version);
+    int current_firmware_version = 0;//get_current_firmware_version();
+    if (req_params.update_version > current_firmware_version){
+        update_result result;
+        result.current_version = current_firmware_version;
+        char rpc_buf[RPC_MSG_BUF_SIZE-4];
+	    struct json_out output = JSON_OUT_BUF(rpc_buf, sizeof(rpc_buf));
+	    json_printf(&output, UPDATE_RESULT_FMT, result.current_version);
+        rpc update_response = {
+        UPDATE_COMMAND_CODE,
+        STATION_ID,
+        SATELLITE_ID,
+        rpc_buf,
+        NULL};
+        tcp_send_rpc(& update_response);
+    } else {
+        char rpc_buf[RPC_MSG_BUF_SIZE-4];
+	    struct json_out output = JSON_OUT_BUF(rpc_buf, sizeof(rpc_buf));
+	    json_printf(&output, RPC_ERROR_FMT, 402,"Upgrade version is older than current.");
+        rpc update_response = {
+        UPDATE_COMMAND_CODE,
+        STATION_ID,
+        SATELLITE_ID,
+        NULL,
+        rpc_buf};
+        tcp_send_rpc(& update_response);
+        return 1;
+    }
+    sleep(1);
+    FILE* file_ptr;
+    file_ptr = fopen("../assets/upgrade/so2_tp1-sat","wb");
+    tcp_recv_file_known_size(file_ptr, req_params.file_size_bytes);
+
+    //int upgrade_result = upgrade_firmware(req_params.update_version, req_params.file_size_bytes);
+
+    
+    
     return 0;
 }
 long find_scan_slice_size(char file_name[]) 
@@ -115,7 +158,7 @@ int send_all_slices(){
             log_trace("Trying to send file: %s",slice_data.slice_name);
             bzero(full_path,sizeof(full_path));
             sprintf(full_path, "../assets/scans/%s",slice_data.slice_name);
-            tcp_result = tcp_send_file_known_size(full_path,slice_data.slice_size_bytes);
+            tcp_result = tcp_send_file(full_path);
             if (tcp_result == socket_failure) {
                 return -1;
             }
@@ -167,6 +210,8 @@ int earth_surfice_scan(){
         NULL};
     log_trace("HOLO4"); 
     tcp_send_rpc(& scan_response);
+    
+    sleep(1);
     
     send_all_slices();
 

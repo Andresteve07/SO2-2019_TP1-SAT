@@ -6,7 +6,7 @@ sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 server_address = ('localhost', 12121)
 #request_msg = '\x63\x00\x00\x00{"command_id":1,"satellite_id":555555,"station_id":999999,"payload":"{\\"current_version\\":11235}"}'
-request_msg = '\x49\x00\x00\x00{"command_id":3,"satellite_id":555555,"station_id":999999,"payload":"HOLO"}'
+request_msg = '\x58\x00\x00\x00{"command_id":3,"satellite_id":555555,"station_id":999999,"payload":"HOLO","error":null}'
 
 try:
     # Send data

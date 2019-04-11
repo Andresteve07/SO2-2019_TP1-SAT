@@ -15,7 +15,10 @@
 #define SRC_SOCKET_CLIENT_H_
 
 #include<stdio.h>
-#define RPC_JSON_FMT "{command_id:%d,satellite_id:%d,station_id:%d,payload:%Q}"
+#define RPC_JSON_FMT "{command_id:%d,satellite_id:%d,station_id:%d,payload:%Q,error:%Q}"
+
+#define RPC_MSG_BUF_SIZE 504
+#define FILE_CHUNK_BUF_SIZE 32
 
 typedef enum{
 	socket_success,
@@ -43,13 +46,13 @@ operation_result tcp_recv_data_bytes(char* data_buffer, size_t byte_count);
 operation_result tcp_send_rpc(rpc* rpc_message);
 operation_result tcp_recv_rpc(rpc* rpc_message);
 operation_result tcp_send_file(char* file_name);
-operation_result tcp_send_file_known_size(char* file_name, size_t size_bytes);
 operation_result tcp_recv_file(FILE* input_file);
 operation_result tcp_recv_file_known_size(FILE* input_file, size_t byte_count);
 operation_result tcp_close_connection();
 
-int integerFromArrayTip(char* array);
-void load_heading_integer_to_byte_array(int number,char* array);
+//TODO endianness independendant implementations
+int get_payload_size(char* whole_buffer);
+void set_payload_size(int payload_size,char* whole_buffer);
 
 operation_result udp_connect();
 
