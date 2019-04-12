@@ -184,7 +184,7 @@ operation_result tcp_send_rpc(rpc* rpc_message){
 
 	set_payload_size(strlen(rpc_buf),total_buf);
 	
-	log_trace("TOTAL req: %c%c%c%c%s\n",total_buf[0],total_buf[1],total_buf[2],total_buf[3],&total_buf[4]);
+	log_trace("TOTAL req: 0x%X,0x%X,0x%X,0x%X::%s\n",total_buf[0],total_buf[1],total_buf[2],total_buf[3],&total_buf[4]);
 
 	if(write(connfd, total_buf, strlen(rpc_buf)+4) > 0){
 		return socket_success;
@@ -214,19 +214,26 @@ operation_result tcp_recv_rpc(rpc* rpc_message){
 	size_t payload_size;
 	char input_buf[RPC_MSG_BUF_SIZE];//sizeof only works ok for static arrays i.e. results on 500
 	bzero(input_buf, sizeof(input_buf));
-	if(read(connfd, input_buf, sizeof(input_buf)) > 0){
+	int bytes_recv = 0;
+	bytes_recv = read(connfd, input_buf, sizeof(input_buf));
+	log_trace("BYTES READ: %i", bytes_recv);
+	log_trace("INPUT BUF: 0x%X,0x%X,0x%X,0x%X. EXTRA 0x%X.",input_buf[0],input_buf[1],input_buf[2],input_buf[3],input_buf[4]);
+	if(bytes_recv > 0){
 		int size_int = get_payload_size(input_buf);
 		char* recv_data = &input_buf[4];
 		recv_data[size_int]='\0';
 		log_trace("size_cadena:%lu,cadena: %s\n",strlen(recv_data),recv_data);
 		
-		json_scanf(recv_data,strlen(recv_data),RPC_JSON_FMT,
+		int scan_fields = json_scanf(recv_data,strlen(recv_data),RPC_JSON_FMT,
 		& rpc_message->command_id,
 		& rpc_message->satellite_id,
 		& rpc_message->station_id,
 		& rpc_message->payload,
 		& rpc_message->error);
-
+		if(scan_fields<=0){
+			log_error("Could not decode any field of payload json. FIELD_COUNT:%i",scan_fields);
+			return socket_failure;
+		}
 		if (rpc_message->payload!=NULL){
 			log_trace("payload_size: %lu, payload:%s", strlen(rpc_message->payload),rpc_message->payload);
 		}

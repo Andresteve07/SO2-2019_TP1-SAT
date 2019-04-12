@@ -98,7 +98,8 @@ int calculate_scan_result(scan_result* result){
     DIR * dirp;
     struct dirent * entry;
     long file_size = 0;
-
+    slice_count = 0;
+    
     dirp = opendir("../assets/scans"); /* There should be error handling after this */
     while ((entry = readdir(dirp)) != NULL) {
         if (entry->d_type == DT_REG) { /* If the entry is a regular file */

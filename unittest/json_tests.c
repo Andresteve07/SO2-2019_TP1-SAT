@@ -17,7 +17,10 @@ void setup()
 {
 	//RESET_FAKE(modulo);
 }
-
+TEST_F(ModuloTest, char_as_hex_test){
+	printf("HEXA: %X",'a');
+	assert(2==3);
+}
 TEST_F(ModuloTest, easy_json_test){
 	char* str = "{ \"a\": 123, \"b\": \"hi\", \"c\": false }";
 	int value = 0;
@@ -101,6 +104,7 @@ int main(void)
 {
 	log_set_level(LOG_TRACE);
 	log_set_quiet(0);
+	RUN_TEST(ModuloTest, char_as_hex_test);
 	RUN_TEST(JSONTest, telemetry_json_scan_test);
 	RUN_TEST(ModuloTest, easy_json_test);
 	RUN_TEST(JSONTest, qfield_json_test);

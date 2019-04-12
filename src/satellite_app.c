@@ -4,7 +4,7 @@
 
 int main(){
     log_set_level(LOG_TRACE);
-	log_set_quiet(0);
+	log_set_quiet(1);
     init_router();
     while(1){
         process_request();
