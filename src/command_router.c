@@ -5,7 +5,7 @@
 
 void init_router(){
     tcp_init_server();
-    udp_init_server();
+    udp_init_server("127.0.0.1");
 }
 void route_commands(rpc* rpc_request){
     int command_code=-1;
