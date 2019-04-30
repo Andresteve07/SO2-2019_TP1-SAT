@@ -2,10 +2,17 @@
 #include "command_controller.h"
 #include "shared/socket_operation.h"
 #include "log.h"
+#include <stdlib.h>
 
-void init_router(){
+void init_router(int params_count, char* program_params[]){
+    if (params_count < 2){
+        printf("Uso: $ %s client_hostname_or_ip_address\n",program_params[0]);
+        log_error("Program params missing.");
+        exit(0);
+    }
     tcp_init_server();
-    udp_init_server("127.0.0.1");
+    log_trace("Program params count %i.",params_count);
+    udp_init_server(program_params[1]);
 }
 void route_commands(rpc* rpc_request){
     int command_code=-1;
