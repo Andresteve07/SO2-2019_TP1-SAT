@@ -219,6 +219,7 @@ int earth_surfice_scan(){
     return 0;
 }
 int system_telemetry(){
+    init_stat_service();
     telemetry_result result;
     result.cpu_usage = get_cpu_usage();
     result.mem_usage = get_mem_usage();
@@ -244,6 +245,6 @@ int system_telemetry(){
         NULL};
 
     udp_send_rpc(&telemetry_response);
-
+    close_stat_service();
     return 0;
 }
