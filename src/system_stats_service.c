@@ -52,7 +52,7 @@ int get_satellite_id(){
     return 123456;
 }
 int get_firmware_version(){
-    return 20203;
+    return FIRMWARE_VERSION;
 }
 
 void close_stat_service(){

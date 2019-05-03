@@ -1,6 +1,6 @@
 #ifndef SRC_SYSTEM_STATS_SERVICE_H_
 #define SRC_SYSTEM_STATS_SERVICE_H_
-
+#define FIRMWARE_VERSION 12203
 void init_stat_service();
 float get_cpu_usage();
 float get_mem_usage();

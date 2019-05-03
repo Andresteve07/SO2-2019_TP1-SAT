@@ -33,7 +33,7 @@ int firmware_update(char* params){
     & req_params.file_size_bytes);
 
     //int upgrade_version_check = check_upgrade_version(req_params.update_version);
-    int current_firmware_version = 0;//get_current_firmware_version();
+    int current_firmware_version = get_firmware_version();
     if (req_params.update_version > current_firmware_version){
         update_result result;
         result.current_version = current_firmware_version;

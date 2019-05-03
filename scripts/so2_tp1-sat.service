@@ -1,0 +1,30 @@
+#/home/pi/SO2-TP1/SO2-2019_TP1-SAT/assets/upgrade/so2_tp1-sat
+[Unit]
+Description=SO2 Satellite App
+ConditionPathExists=/home/pi/SO2-TP1/SO2-2019_TP1-SAT/assets/upgrade/so2_tp1-sat
+After=network.target
+ 
+[Service]
+Type=simple
+User=so2_sat
+Group=so2_sat
+LimitNOFILE=1024
+
+Restart=on-failure
+RestartSec=10
+startLimitIntervalSec=60
+
+WorkingDirectory=/home/pi/SO2-TP1/SO2-2019_TP1-SAT/assets/upgrade/
+ExecStart=/home/pi/SO2-TP1/SO2-2019_TP1-SAT/assets/upgrade/so2_tp1-sat
+
+# make sure log directory exists and owned by syslog
+PermissionsStartOnly=true
+ExecStartPre=/bin/mkdir -p /var/log/so2_sat
+ExecStartPre=/bin/chown syslog:adm /var/log/so2_sat
+ExecStartPre=/bin/chmod 755 /var/log/so2_sat
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=so2_sat
+ 
+[Install]
+WantedBy=multi-user.target
