@@ -93,6 +93,34 @@ long find_scan_slice_size(char file_name[])
 
 slice_meta slices_dataset[300];
 int slice_count = 0;
+int get_scan_metadata(scan_metadata* meta){
+    DIR * dirp;
+    struct dirent * entry;
+    long file_size = 0;
+    slice_count = 0;
+
+    dirp = opendir("../assets/scans"); /* There should be error handling after this */
+    while ((entry = readdir(dirp)) != NULL) {
+        if (entry->d_type == DT_REG) { /* If the entry is a regular file */
+            file_size = find_scan_slice_size(entry->d_name);
+            log_trace("SCAN FILE. name:%s,size%lu",entry->d_name,file_size);
+            if (file_size > 0) {
+                int name_length = strlen(entry->d_name);
+                log_trace("NAME SIZE: %i",name_length);
+                meta->file_size_bytes = file_size;
+                meta->file_name=malloc(name_length + 1);
+                bzero(meta->file_name,name_length+1);
+                strcpy(meta->file_name, entry->d_name);
+                log_trace("SCAN DATA. name:%s,size%i",meta->file_name,meta->file_size_bytes);
+                closedir(dirp);
+                return 0;
+            }
+        }
+    }
+    closedir(dirp);
+    return 0;
+}
+
 int calculate_scan_result(scan_result* result){
     
     DIR * dirp;
@@ -188,8 +216,37 @@ int print_slices_array(struct json_out* out, va_list* ap){
 	bytes_writen += json_printf(out, "]", 1);
 	return bytes_writen;
 }
-
+#define SCAN_META_FMT "{file_name:%Q,file_size_bytes:%lu}"
 int earth_surfice_scan(){
+    scan_metadata metadata;
+    get_scan_metadata(& metadata);
+
+    char rpc_buf[RPC_MSG_BUF_SIZE-4];
+	struct json_out output = JSON_OUT_BUF(rpc_buf, sizeof(rpc_buf));
+
+    json_printf(&output, SCAN_META_FMT, 
+    metadata.file_name,
+    metadata.file_size_bytes);
+
+    rpc scan_response = {
+        UPDATE_COMMAND_CODE,
+        STATION_ID,
+        SATELLITE_ID,
+        rpc_buf,
+        NULL};
+    tcp_send_rpc(& scan_response);
+    sleep(1);
+    char filename[200];
+    bzero(filename,200);
+    sprintf(filename,"../assets/scans/%s",metadata.file_name);
+    log_trace("SCAN REALTIVE PATH: %s",filename);
+    if(tcp_send_file(filename)==socket_success){
+        log_debug("File: %s SUCCESSFULLY SENT!", filename);
+    } else {
+        log_error("File: %s COULD NOT BE SENT!", filename);
+    }
+}
+int od_earth_surfice_scan(){
     scan_result result;
     log_trace("HOLO1");
     calculate_scan_result(& result);

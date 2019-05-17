@@ -7,6 +7,11 @@ typedef struct update_params{
 	long file_size_bytes;
 } update_params;
 
+typedef struct scan_metadata{
+	char* file_name;
+	long file_size_bytes;
+} scan_metadata;
+
 typedef struct update_result{
 	int current_version;
 } update_result;
