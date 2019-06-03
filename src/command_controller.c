@@ -7,6 +7,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #define UPDATE_PARAMS_FMT "{update_version:%d, file_size_bytes:%lu}"
 #define UPDATE_RESULT_FMT "{current_version:%d}"
@@ -24,7 +25,9 @@
 #define STATION_ID 123456
 #define SATELLITE_ID 987654
 
-#define FIRMWARE_FILE_PATH "../assets/file_server"
+#define FIRMWARE_FILE_PATH "../assets/upgrade/so2_tp1-sat"
+
+//Only for terminal launch #define FIRMWARE_FILE_PATH "so2_tp1_satellite"
 
 int firmware_update(char* params){
     update_params req_params;
@@ -34,6 +37,7 @@ int firmware_update(char* params){
 
     //int upgrade_version_check = check_upgrade_version(req_params.update_version);
     int current_firmware_version = get_firmware_version();
+    log_debug("CURRENT VERSION: %i", current_firmware_version);
     if (req_params.update_version > current_firmware_version){
         update_result result;
         result.current_version = current_firmware_version;
@@ -62,13 +66,18 @@ int firmware_update(char* params){
     }
     sleep(1);
     FILE* file_ptr;
-    file_ptr = fopen("../assets/upgrade/so2_tp1-sat","wb");
-    tcp_recv_file_known_size(file_ptr, req_params.file_size_bytes);
-
-    //int upgrade_result = upgrade_firmware(req_params.update_version, req_params.file_size_bytes);
-
-    
-    
+    unlink(FIRMWARE_FILE_PATH);
+    file_ptr = fopen(FIRMWARE_FILE_PATH,"wb");
+    operation_result firm_tranf_result = tcp_recv_file_known_size(file_ptr, req_params.file_size_bytes);
+    if (firm_tranf_result == socket_success){
+        int chmod_result = chmod(FIRMWARE_FILE_PATH, S_IRWXU);
+        log_debug("CHMOD RESULT: %i",chmod_result);
+        log_debug("Trying to reset the computer so the uptade takes effect.");
+        int system_reset_result = 0;//system("shutdown -P now");
+        log_debug("Reset result: %i",system_reset_result);
+    } else {
+        log_error("Failure on firmware update transmision.");
+    }
     return 0;
 }
 long find_scan_slice_size(char file_name[]) 

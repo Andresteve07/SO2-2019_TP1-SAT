@@ -35,3 +35,9 @@ WantedBy=multi-user.target
 # make
 # cp so2_tp1_satellite ../assets/upgrade/so2_tp1-sat
 # sudo systemctl start so3_tp1-sat.service
+
+
+# first time local installation
+# make
+# cp so2_tp1_satellite ../assets/upgrade/so2_tp1-sat
+# sudo chown so2tp1sat:so2tp1sat ../assets/upgrade/so2_tp1-sat
