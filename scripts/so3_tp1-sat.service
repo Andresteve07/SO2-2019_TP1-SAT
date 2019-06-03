@@ -1,7 +1,7 @@
 #/home/pi/SO2-TP1/SO2-2019_TP1-SAT/assets/upgrade/so2_tp1-sat
 [Unit]
 Description=SO2 Satellite App
-ConditionPathExists=/home/pi/SO2-TP1/SO2-2019_TP1-SAT/assets/upgrade/so2_tp1-sat
+ConditionPathExists=/home/andresteve07/workspace.vcode/SO2-2019_TP1-SAT/assets/upgrade/so2_tp1-sat
 After=network.target
  
 [Service]
@@ -13,8 +13,8 @@ LimitNOFILE=1024
 Restart=on-failure
 RestartSec=10
 
-WorkingDirectory=/home/pi/SO2-TP1/SO2-2019_TP1-SAT/src/
-ExecStart=/home/pi/SO2-TP1/SO2-2019_TP1-SAT/assets/upgrade/so2_tp1-sat 10.0.0.2
+WorkingDirectory=/home/andresteve07/workspace.vcode/SO2-2019_TP1-SAT/src/
+ExecStart=/home/andresteve07/workspace.vcode/SO2-2019_TP1-SAT/assets/upgrade/so2_tp1-sat 127.0.0.1
 
 # make sure log directory exists and owned by syslog
 PermissionsStartOnly=true
@@ -29,7 +29,7 @@ SyslogIdentifier=so2tp1sat
 WantedBy=multi-user.target
 
 # Update executable
-# sudo journalctl -f -u so2_tp1-sat
+# sudo journalctl -f -u so3_tp1-sat
 # sudo systemctl stop so3_tp1-sat.service
 # cd build
 # make

@@ -104,7 +104,7 @@ int get_scan_metadata(scan_metadata* meta){
         if (entry->d_type == DT_REG) { /* If the entry is a regular file */
             file_size = find_scan_slice_size(entry->d_name);
             log_trace("SCAN FILE. name:%s,size%lu",entry->d_name,file_size);
-            if (file_size > 0) {
+            if (file_size > 500) {
                 int name_length = strlen(entry->d_name);
                 log_trace("NAME SIZE: %i",name_length);
                 meta->file_size_bytes = file_size;
@@ -118,7 +118,7 @@ int get_scan_metadata(scan_metadata* meta){
         }
     }
     closedir(dirp);
-    return 0;
+    return -1;
 }
 
 int calculate_scan_result(scan_result* result){
@@ -219,32 +219,50 @@ int print_slices_array(struct json_out* out, va_list* ap){
 #define SCAN_META_FMT "{file_name:%Q,file_size_bytes:%lu}"
 int earth_surfice_scan(){
     scan_metadata metadata;
-    get_scan_metadata(& metadata);
+    int scan_meta_result = get_scan_metadata(& metadata);
+
 
     char rpc_buf[RPC_MSG_BUF_SIZE-4];
 	struct json_out output = JSON_OUT_BUF(rpc_buf, sizeof(rpc_buf));
 
-    json_printf(&output, SCAN_META_FMT, 
-    metadata.file_name,
-    metadata.file_size_bytes);
+    if(scan_meta_result<0){
+        json_printf(&output, RPC_ERROR_FMT, 
+        404,
+        "No scans where found.");
 
-    rpc scan_response = {
-        UPDATE_COMMAND_CODE,
-        STATION_ID,
-        SATELLITE_ID,
-        rpc_buf,
-        NULL};
-    tcp_send_rpc(& scan_response);
-    sleep(1);
-    char filename[200];
-    bzero(filename,200);
-    sprintf(filename,"../assets/scans/%s",metadata.file_name);
-    log_trace("SCAN REALTIVE PATH: %s",filename);
-    if(tcp_send_file(filename)==socket_success){
-        log_debug("File: %s SUCCESSFULLY SENT!", filename);
+        rpc scan_response = {
+            UPDATE_COMMAND_CODE,
+            STATION_ID,
+            SATELLITE_ID,
+            NULL,
+            rpc_buf};
+        tcp_send_rpc(& scan_response);
+        return -1;
     } else {
-        log_error("File: %s COULD NOT BE SENT!", filename);
+        json_printf(&output, SCAN_META_FMT, 
+        metadata.file_name,
+        metadata.file_size_bytes);
+
+        rpc scan_response = {
+            UPDATE_COMMAND_CODE,
+            STATION_ID,
+            SATELLITE_ID,
+            rpc_buf,
+            NULL};
+        tcp_send_rpc(& scan_response);
+        sleep(1);
+        char filename[200];
+        bzero(filename,200);
+        sprintf(filename,"../assets/scans/%s",metadata.file_name);
+        log_trace("SCAN REALTIVE PATH: %s",filename);
+        if(tcp_send_file(filename)==socket_success){
+            log_debug("File: %s SUCCESSFULLY SENT!", filename);
+        } else {
+            log_error("File: %s COULD NOT BE SENT!", filename);
+        }
     }
+    return 0;
+    
 }
 int od_earth_surfice_scan(){
     scan_result result;
