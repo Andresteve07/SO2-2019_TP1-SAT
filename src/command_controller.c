@@ -73,7 +73,7 @@ int firmware_update(char* params){
         int chmod_result = chmod(FIRMWARE_FILE_PATH, S_IRWXU);
         log_debug("CHMOD RESULT: %i",chmod_result);
         log_debug("Trying to reset the computer so the uptade takes effect.");
-        int system_reset_result = 0;//system("shutdown -P now");
+        int system_reset_result = system("sudo shutdown -r now");
         log_debug("Reset result: %i",system_reset_result);
     } else {
         log_error("Failure on firmware update transmision.");

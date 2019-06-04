@@ -40,3 +40,7 @@ WantedBy=multi-user.target
 # make
 # cp so2_tp1_satellite ../assets/upgrade/so2_tp1-sat
 # sudo chown so2tp1sat:so2tp1sat ../assets/upgrade/so2_tp1-sat 
+
+# add service user to sudoers so it can shutdown the computer
+# sudo visudo
+# so2tp1sat ALL= NOPASSWD: /sbin/shutdown
